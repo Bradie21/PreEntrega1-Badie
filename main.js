@@ -1,122 +1,125 @@
-// Función para normalizar texto (convertir a minúsculas y eliminar acentos)
-function normalizeText(text) {
-  return text
+// Normaliza el texto eliminando acentos y pasando a minúsculas
+function normalizarTexto(texto) {
+  return texto
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // Eliminar acentos
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
-// Clase para manejar conversiones de unidades
+// Clase para manejar las conversiones
 class Conversion {
   constructor() {
-    this.conversions = [];
+    this.conversiones = this.obtenerConversionesGuardadas() || []; // Si no hay conversiones previas, inicializa un array vacío
   }
 
-  // Método para agregar una conversión
-  addConversion(kilometers) {
-    this.conversions.push(kilometers);
+  // Fecha para mostrar en formato 24 horas
+  formatearFecha(fecha) {
+    const opciones = { hour: "2-digit", minute: "2-digit", hour12: false };
+    return fecha.toLocaleDateString("es-ES") + " " + fecha.toLocaleTimeString("es-ES", opciones);
   }
 
-  // Métodos para convertir kilómetros a diferentes unidades
-  convertKilometersToMillimeters(kilometers) {
-    return kilometers * 1_000_000;
+  // Guarda conversiones en LocalStorage
+  guardarConversion(kilometros, unidad, valorConvertido) {
+    const nuevaConversion = {
+      kilometros,
+      unidad,
+      valorConvertido,
+      fecha: this.formatearFecha(new Date()), // Guarda la fecha de la conversión formateada
+    };
+    this.conversiones.push(nuevaConversion);
+    localStorage.setItem("conversiones", JSON.stringify(this.conversiones)); // Guardar en JSON
   }
 
-  convertKilometersToMeters(kilometers) {
-    return kilometers * 1_000;
+  // Obtener conversiones desde LocalStorage
+  obtenerConversionesGuardadas() {
+    return JSON.parse(localStorage.getItem("conversiones"));
   }
 
-  convertKilometersToCentimeters(kilometers) {
-    return kilometers * 100_000;
-  }
-
-  // Método para mostrar todas las conversiones en una unidad específica
-  convert(kilometers, unit) {
-    switch (unit) {
+  // Convierte kilómetros a la unidad seleccionada
+  convertir(kilometros, unidad) {
+    switch (unidad) {
       case "milimetros":
-        return this.convertKilometersToMillimeters(kilometers);
+        return kilometros * 1000000;
       case "metros":
-        return this.convertKilometersToMeters(kilometers);
+        return kilometros * 1000;
       case "centimetros":
-        return this.convertKilometersToCentimeters(kilometers);
+        return kilometros * 100000;
       default:
         return null;
     }
   }
 
-  // Función de orden superior para procesar todas las conversiones
-  processConversions(unit) {
-    return this.conversions.map((km) => ({
-      kilometers: km,
-      converted: this.convert(km, unit),
-    }));
+  // Mostrar el historial de conversiones
+  mostrarHistorial() {
+    const listaHistorial = document.getElementById("historial");
+    listaHistorial.innerHTML = ""; // Borra el historial antes de agregar nuevas conversiones
+    this.conversiones.forEach((conversion) => {
+      const item = document.createElement("li");
+      item.textContent = `${
+        conversion.kilometros
+      } km = ${conversion.valorConvertido.toFixed(2)} ${
+        conversion.unidad
+      } (convertido el ${conversion.fecha})`;
+
+      // Aplicar la clase según la unidad para darle color
+      item.classList.add(conversion.unidad);
+      listaHistorial.appendChild(item);
+    });
   }
 
-  // Método para buscar una conversión por kilómetros
-  findConversion(kilometers) {
-    return this.conversions.find((km) => km === kilometers);
-  }
-
-  // Método para filtrar las conversiones mayores a un valor
-  filterConversionsGreaterThan(value) {
-    return this.conversions.filter((km) => km > value);
+  // Borrar todas las conversiones del historial
+  borrarHistorial() {
+    this.conversiones = []; // Limpia el array de conversiones
+    localStorage.removeItem("conversiones"); // Elimina del LocalStorage
+    this.mostrarHistorial(); // Actualiza el DOM para reflejar los cambios
   }
 }
 
-// Función para manejar la conversión y actualizar la interfaz
-function convert() {
-  const inputKilometers = prompt("Ingrese la cantidad de kilómetros:");
-  const kilometers = parseFloat(inputKilometers.trim());
+// Crear instancia de la clase Conversion
+const conversor = new Conversion();
+conversor.mostrarHistorial(); // Mostrar historial al cargar la página
 
-  if (isNaN(kilometers) || kilometers < 0) {
-    alert("Por favor, ingrese un valor válido para los kilómetros.");
+// Función que se ejecuta al hacer clic en el botón de conversión
+function manejarConversion() {
+  const inputKilometros = document.getElementById("kilometros").value;
+  const kilometros = parseFloat(inputKilometros);
+  const unidadSeleccionada = document.getElementById("unidad").value;
+
+  // Validar el valor de kilómetros
+  if (isNaN(kilometros) || kilometros < 0) {
+    document.getElementById("resultado").innerText =
+      "Por favor, ingrese un valor válido.";
     return;
   }
 
-  const inputUnit = prompt(
-    "¿A qué unidad desea convertir? (milímetros, metros, centímetros):"
-  );
-  const unit = normalizeText(inputUnit);
-
-  // Crear una instancia de la clase Conversion
-  const conversion = new Conversion();
-  conversion.addConversion(kilometers);
-
-  // Corregir los acentos y nombres para asegurar que coincidan en el switch
-  const convertedValue = conversion.convert(kilometers, unit);
-  if (convertedValue === null) {
-    alert(
-      "Unidad no válida. Por favor, ingrese 'milímetros', 'metros' o 'centímetros' (sin acentos)."
-    );
+  // Realizar la conversión
+  const valorConvertido = conversor.convertir(kilometros, unidadSeleccionada);
+  if (valorConvertido === null) {
+    document.getElementById("resultado").innerText = "Unidad no válida.";
     return;
   }
-
-  // Loguear el resultado
-  console.log(`Kilómetros ingresados: ${kilometers}`);
-  console.log(
-    `${kilometers} kilómetros equivalen a ${convertedValue.toFixed(2)} ${unit}.`
-  );
-
-  // Mostrar el resultado al usuario
-  alert(
-    `${kilometers} kilómetros equivalen a ${convertedValue.toFixed(2)} ${unit}.`
-  );
 
   // Mostrar el resultado en el HTML
   document.getElementById(
-    "result"
-  ).innerText = `${kilometers} kilómetros equivalen a ${convertedValue.toFixed(
+    "resultado"
+  ).innerText = `${kilometros} kilómetros equivalen a ${valorConvertido.toFixed(
     2
-  )} ${unit}.`;
+  )} ${unidadSeleccionada}.`;
 
-  // Ejemplos de búsqueda y filtrado
-  const foundConversion = conversion.findConversion(kilometers);
-  const filteredConversions = conversion.filterConversionsGreaterThan(10);
-  const processedConversions = conversion.processConversions(unit);
-
-  console.log(`Conversión encontrada: ${foundConversion}`);
-  console.log(`Conversiones mayores a 10 kilómetros: ${filteredConversions}`);
-  console.log(
-    `Todas las conversiones procesadas: ${JSON.stringify(processedConversions)}`
-  );
+  // Guardar la conversión en el historial y mostrarlo
+  conversor.guardarConversion(kilometros, unidadSeleccionada, valorConvertido);
+  conversor.mostrarHistorial();
 }
+
+// Evento de clic al botón de conversión
+document
+  .getElementById("convertirBtn")
+  .addEventListener("click", manejarConversion);
+
+// Función para borrar el historial al hacer clic en el botón
+document
+  .getElementById("borrarHistorialBtn")
+  .addEventListener("click", function () {
+    conversor.borrarHistorial(); // Llamar al método para borrar el historial
+    document.getElementById("resultado").innerText = ""; // Limpiar el resultado mostrado
+  });
